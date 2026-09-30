@@ -1,3 +1,456 @@
+const mockExtraQuestions = [
+  {
+    id: 21,
+    topic: 'Production mindset / readiness',
+    chapter: 'บทที่ 1',
+    prompt: 'แอป CRUD ทำงานได้เมื่อเน็ตดี แต่ค้างเมื่อเน็ตหลุดและไม่มีเทสคุ้มกัน ข้อใดสะท้อนความหมายของแอปที่ “ส่งมอบได้” ตามเอกสาร?',
+    options: [
+      'เพิ่มหน้า CRUD ให้มากขึ้นก่อน ส่วน error ค่อยแก้หลังส่ง',
+      'ทำให้ UI สวยที่สุด โดยไม่จำเป็นต้องวัดหรือทดสอบ',
+      'ให้ API สำเร็จใน demo หนึ่งครั้งก็เพียงพอ',
+      'รับมือความล้มเหลว วัดประสิทธิภาพ ทดสอบ และมีกระบวนการปล่อยแอปที่ทำซ้ำได้',
+    ],
+    answer: 3,
+    explanation: 'ความพร้อมส่งมอบรวมการรับมือเน็ตหลุด การทำงานกับข้อมูลจำนวนมาก การแก้โค้ดอย่างมั่นใจ และการขึ้นสโตร์จริง การเพิ่ม CRUD, ทำ UI สวย หรือ demo สำเร็จอย่างเดียวจึงยังไม่ครอบคลุมความพร้อมเหล่านี้',
+    source: 'PDF หน้า 11 และ 16',
+  },
+  {
+    id: 22,
+    topic: 'Production mindset / interfaces',
+    chapter: 'บทที่ 1',
+    prompt: 'ทีมมีแผนย้ายแหล่งข้อมูลจาก PHP API ไป Firestore หลัก “program to an interface” ช่วยเรื่องนี้อย่างไร?',
+    options: [
+      'ให้หน้าจอเรียกผ่านสัญญาเดียว แล้วสลับ implementation ที่อยู่ข้างหลัง',
+      'ให้ทุก widget ตรวจเองว่าตอนนี้ใช้ PHP หรือ Firestore',
+      'เก็บ URL ของ backend ไว้ในทุกหน้าจอเพื่อเปลี่ยนได้สะดวก',
+      'ตัด model ออกแล้วใช้ dynamic เพื่อให้รับข้อมูลได้ทุกแบบ',
+    ],
+    answer: 0,
+    explanation: 'หน้าจอควรรู้ว่าขอข้อมูลอะไรได้ผ่านสัญญา โดยไม่ต้องรู้แหล่งข้อมูล การแยก implementation ช่วยเปลี่ยน backend และใช้ของปลอมในเทสได้ ส่วนการกระจายเงื่อนไขหรือ URL ใน widget เพิ่มจุดที่ต้องแก้ และ dynamic ไม่ได้แก้การผูกติดกับ backend',
+    source: 'PDF หน้า 14–15',
+  },
+  {
+    id: 23,
+    topic: 'Production mindset / analyzer',
+    chapter: 'บทที่ 1',
+    prompt: 'ในโค้ด List<dynamic> ผู้พัฒนาเขียนชื่อ field เป็น “titel” แล้วเพิ่งพบปัญหาตอนรัน แนวทางใดช่วยจับความผิดพลาดลักษณะนี้ตั้งแต่พัฒนา?',
+    options: [
+      'ปิดคำเตือนของ analyzer เพื่อให้เขียนโค้ดเร็วขึ้น',
+      'ใช้ model ที่มีชนิดชัดเจน เปิด strict mode และรัน flutter analyze',
+      'ย้าย dynamic ไปเก็บในตัวแปร global',
+      'เปลี่ยน List เป็น Map<dynamic, dynamic> ทุกจุด',
+    ],
+    answer: 1,
+    explanation: 'ชนิดข้อมูลที่ชัดเจนและ strict-casts, strict-inference, strict-raw-types ช่วยให้ analyzer เตือนปัญหาได้เร็วขึ้น การปิดคำเตือนหรือย้าย dynamic ไปที่อื่นยังไม่ได้เพิ่มการตรวจชนิดข้อมูล',
+    source: 'PDF หน้า 13 และ 15–16',
+  },
+  {
+    id: 24,
+    topic: 'Riverpod / side effects',
+    chapter: 'บทที่ 2',
+    prompt: 'ต้องแสดง SnackBar เมื่อ provider เปลี่ยนเป็น error โดยไม่ให้ตัวฟังเป็นเหตุให้ widget rebuild ควรใช้วิธีใด?',
+    options: [
+      'เรียก showSnackBar ทุกครั้งใน build()',
+      'ใช้ ref.read อย่างเดียวเพื่อรอฟังทุกการเปลี่ยนแปลง',
+      'ใช้ ref.watch แล้วทำ navigation ทุกครั้งที่ build',
+      'ใช้ ref.listen และตรวจ state ใหม่ใน callback',
+    ],
+    answer: 3,
+    explanation: 'ref.listen มีไว้ตอบสนองต่อการเปลี่ยน state ด้วย side effect เช่น SnackBar หรือ navigation โดยการฟังนี้ไม่สั่ง rebuild ส่วน read ไม่ได้ subscribe และ build อาจถูกเรียกซ้ำ จึงไม่ควรทำ side effect ทุกครั้งใน build',
+    source: 'PDF หน้า 27',
+  },
+  {
+    id: 25,
+    topic: 'Riverpod / family & lifecycle',
+    chapter: 'บทที่ 2',
+    prompt: 'หน้ารายละเอียดโน้ตต้องแยก state ตาม id และปล่อย state เมื่อไม่มีผู้ฟังแล้ว ควรจับคู่เครื่องมือใด?',
+    options: [
+      'select แยก id และ read ทำลาย state',
+      'invalidate แยก id และ watch ทำลาย state',
+      'family รับ id และ autoDispose จัดการ state เมื่อไม่มีผู้ฟัง',
+      'ProviderScope แยก id และ AsyncValue.guard ทำลาย state',
+    ],
+    answer: 2,
+    explanation: 'family ทำให้ provider มีหลายชุดตามพารามิเตอร์ ส่วน autoDispose ดูแลอายุของ state เมื่อไม่มีผู้ฟัง พารามิเตอร์ต้องมี == และ hashCode ที่ถูกต้อง select ลดขอบเขตการฟัง แต่ไม่ได้สร้างชุด state ตาม id และ guard จัดการผล async ไม่ใช่วงจรชีวิต',
+    source: 'PDF หน้า 25–26',
+  },
+  {
+    id: 26,
+    topic: 'Riverpod / select',
+    chapter: 'บทที่ 2',
+    prompt: 'widget แสดงเฉพาะจำนวนโน้ต ใช้ notesProvider.select((value) => value.value?.length ?? 0) ถ้าแก้ชื่อโน้ตหนึ่งรายการโดยจำนวนยังเท่าเดิม ข้อใดตรงกับหลัก select?',
+    options: [
+      'widget นี้ไม่ต้อง rebuild จากการเปลี่ยนครั้งนั้น เพราะค่าจำนวนที่เลือกยังเท่าเดิม',
+      'widget นี้ต้อง rebuild เสมอ เพราะทุก field ของโน้ตถูกเลือกไว้',
+      'select จะป้องกันไม่ให้ชื่อโน้ตใน provider เปลี่ยน',
+      'select ทำให้ provider กลายเป็นการอ่านครั้งเดียวเหมือน read',
+    ],
+    answer: 0,
+    explanation: 'select subscribe เฉพาะค่าที่เลือก ในตัวอย่างคือจำนวนโน้ต เมื่อจำนวนไม่เปลี่ยน widget จึงไม่ต้อง rebuild จากการอัปเดตนั้น select ไม่ได้ห้ามเปลี่ยน state และยังเป็นการฟัง ไม่ใช่ read ครั้งเดียว',
+    source: 'PDF หน้า 26–27',
+  },
+  {
+    id: 27,
+    topic: 'Riverpod / retry',
+    chapter: 'บทที่ 2',
+    prompt: 'ผู้ใช้กด “ลองใหม่” หลัง notesProvider โหลดล้มเหลว และ UI ยัง watch provider นี้อยู่ ref.invalidate(notesProvider) มีหน้าที่ใด?',
+    options: [
+      'เปลี่ยน error ให้เป็น data โดยไม่ต้องโหลดข้อมูลใหม่',
+      'ยกเลิก ProviderScope ทั้งแอป',
+      'แก้ข้อมูลบน backend โดยอัตโนมัติ',
+      'ทิ้ง state เดิมของ provider เพื่อให้คำนวณหรือรัน build() ใหม่',
+    ],
+    answer: 3,
+    explanation: 'invalidate ทำให้ state เดิมใช้ไม่ได้ และ provider ที่ยังมีผู้ฟังจะคำนวณใหม่ จึงเหมาะกับ retry และ refresh มันไม่ได้ปลอมผลสำเร็จ ไม่ได้แก้ backend และไม่ได้ยกเลิก ProviderScope',
+    source: 'PDF หน้า 23–24',
+  },
+  {
+    id: 28,
+    topic: 'BLoC / sealed state',
+    chapter: 'บทที่ 3',
+    prompt: 'กำหนด NotesState เป็น sealed class และวาด UI ด้วย exhaustive switch หากเพิ่ม state ใหม่ ข้อดีสำคัญคืออะไร?',
+    options: [
+      'Dart สร้าง UI สำหรับ state ใหม่ให้เอง',
+      'คอมไพเลอร์ช่วยชี้ switch ที่ยังจัดการ state ไม่ครบ',
+      'ไม่ต้องใช้ BlocProvider อีกต่อไป',
+      'state ทั้งหมดกลายเป็น mutable โดยอัตโนมัติ',
+    ],
+    answer: 1,
+    explanation: 'sealed class ทำให้คอมไพเลอร์รู้กลุ่ม subtype และตรวจความครบถ้วนของ switch ได้ การเพิ่ม state จึงเผยจุดที่ต้องแก้ แต่ไม่ได้สร้าง widget ให้ ไม่ได้แทน DI และไม่ได้เปลี่ยน state ให้ mutable',
+    source: 'PDF หน้า 31 และ 37',
+  },
+  {
+    id: 29,
+    topic: 'BLoC / immutable updates',
+    chapter: 'บทที่ 3',
+    prompt: 'หลังลบโน้ต นักพัฒนาแก้ List เดิมใน state แล้วพบว่า UI ไม่อัปเดต แนวทางใดสอดคล้องกับเอกสาร?',
+    options: [
+      'สร้าง Bloc ใหม่ทุกครั้งใน build() เพื่อบังคับเริ่มใหม่',
+      'แก้ List เดิมต่อ แล้วเรียก navigation จาก BlocBuilder',
+      'สร้าง List ใหม่ แล้ว emit state ใหม่ผ่าน copyWith',
+      'ย้ายการแก้ List ไปไว้ใน Text widget',
+    ],
+    answer: 2,
+    explanation: 'ตัวอย่างลบโน้ตสร้างรายการใหม่ด้วย where(...).toList() แล้ว emit ผ่าน copyWith เพื่อเปลี่ยน state อย่างชัดเจน การ mutate List เดิมเป็นข้อผิดพลาดที่เอกสารเตือน การสร้าง Bloc ซ้ำใน build ทำให้ state หาย และ navigation เป็นหน้าที่ของ listener',
+    source: 'PDF หน้า 35 และ 37–38',
+  },
+  {
+    id: 30,
+    topic: 'BLoC / bloc_test',
+    chapter: 'บทที่ 3',
+    prompt: 'bloc_test ส่ง NotesRequested แล้ว repository สำเร็จ ลำดับ state ที่ตัวอย่างในเอกสารคาดหวังคือข้อใด?',
+    options: [
+      'NotesLoaded แล้ว NotesLoading',
+      'NotesFailure แล้ว NotesInitial',
+      'NotesInitial เท่านั้น โดยไม่สนผลจาก repository',
+      'NotesLoading แล้ว NotesLoaded',
+    ],
+    answer: 3,
+    explanation: 'handler emit Loading ก่อนรอ fetchAll แล้ว emit Loaded เมื่อสำเร็จ bloc_test จึงตรวจลำดับที่ปล่อยหลัง action นี้ ไม่ใช่เพียง state สุดท้าย ส่วน Failure เป็นเส้นทางล้มเหลว การเปรียบเทียบ state ในเทสต้องมี == ที่เหมาะสมด้วย',
+    source: 'PDF หน้า 35 และ 38–39',
+  },
+  {
+    id: 31,
+    topic: 'Architecture / repository contract',
+    chapter: 'บทที่ 4',
+    prompt: 'การออกแบบ NoteRepository ควรเริ่มจากมุมมองใดตามเอกสาร?',
+    options: [
+      'งานและข้อมูลที่ controller ต้องการ โดยซ่อนรายละเอียด endpoint ไว้ข้างหลัง',
+      'สร้าง method ใน Domain ให้ตรงกับชื่อไฟล์ PHP ทุกไฟล์เสมอ',
+      'ให้สัญญาคืน Dio Response เพื่อให้ทุกหน้ารู้จัก HTTP',
+      'ให้ widget ตัดสินใจเองว่าจะอ่าน cache หรือเรียก Firestore',
+    ],
+    answer: 0,
+    explanation: 'สัญญาต้องออกแบบเพื่อผู้ใช้สัญญา คือ controller และซ่อนแหล่งข้อมูล ไม่ควรผูกกับรูปแบบ endpoint หรือชนิด Response ของ Dio การให้ widget เลือกแหล่งข้อมูลยังทำให้ UI รู้รายละเอียด Data layer',
+    source: 'PDF หน้า 45',
+  },
+  {
+    id: 32,
+    topic: 'Architecture / use cases',
+    chapter: 'บทที่ 4',
+    prompt: 'กฎ “เก็บถาวรโน้ตที่ไม่แก้ไขเกิน 90 วัน” ถูกใช้จากหลายหน้าจอ ควรวางกฎและออกแบบเวลาเพื่อทดสอบอย่างไร?',
+    options: [
+      'คัดลอกกฎไปไว้ใน build() ของทุกหน้า',
+      'เขียนเป็น use case ใน Domain และรับค่า now เพื่อควบคุมเวลาในเทส',
+      'เขียนไว้ใน DTO.fromJson และอ่าน DateTime.now() อย่างเดียว',
+      'ย้ายกฎทั้งหมดไปที่ theme เพื่อให้ใช้ร่วมกันง่าย',
+    ],
+    answer: 1,
+    explanation: 'use case รวบกฎธุรกิจที่ซับซ้อนหรือใช้ซ้ำไว้ใน Domain และพารามิเตอร์ now ทำให้เทสตรวจขอบ 90 วันได้แน่นอน UI มีหน้าที่แสดงผล DTO มีหน้าที่แปลงข้อมูล และ theme ไม่ใช่ที่เก็บกฎธุรกิจ',
+    source: 'PDF หน้า 51–52 และ 93',
+  },
+  {
+    id: 33,
+    topic: 'Architecture / feature-first',
+    chapter: 'บทที่ 4',
+    prompt: 'ข้อใดเป็นเหตุผลหลักของการจัดโฟลเดอร์แบบ Feature-first เช่น features/notes/{data, domain, presentation}?',
+    options: [
+      'ทำให้ทุกฟีเจอร์ import หน้าจอของกันและกันได้อิสระ',
+      'ทำให้ไฟล์ทุกประเภทต้องอยู่รวมใน core',
+      'ทำให้ไม่ต้องแบ่งชั้น Data, Domain และ Presentation',
+      'ให้ไฟล์ที่เปลี่ยนด้วยกันเมื่อแก้ฟีเจอร์อยู่ใกล้กัน และแยกของใช้ร่วมไว้ใน core',
+    ],
+    answer: 3,
+    explanation: 'Feature-first รวมไฟล์ของฟีเจอร์เดียวกันและยังแบ่งชั้นภายใน core เก็บของใช้ร่วมที่ไม่ขึ้นกับฟีเจอร์ใด การ import หน้าจอข้ามฟีเจอร์โดยตรงเพิ่มการผูกติด ส่วนการย้ายทุกอย่างเข้า core หรือเลิกแบ่งชั้นไม่ใช่เป้าหมายของแนวทางนี้',
+    source: 'PDF หน้า 52–53',
+  },
+  {
+    id: 34,
+    topic: 'Architecture / when to separate',
+    chapter: 'บทที่ 4',
+    prompt: 'ข้อใดเป็นสัญญาณที่มีเหตุผลว่าควรเริ่มแยกชั้นและ Repository?',
+    options: [
+      'แอป BMI หน้าเดียว ไม่มีข้อมูลแชร์หรือกฎธุรกิจซับซ้อน',
+      'ต้องการเพิ่มจำนวนไฟล์ให้ดูเหมือนโปรเจกต์ใหญ่',
+      'สองหน้าคัดลอกโค้ดเรียก API เดียวกัน และเขียนเทสโดยไม่เรียก network ไม่ได้',
+      'เพียงเพราะทุกตัวอย่างบนอินเทอร์เน็ตมี Repository',
+    ],
+    answer: 2,
+    explanation: 'เอกสารให้แยกจากปัญหาจริง เช่น โค้ดซ้ำ ทดสอบยาก หรือกำลังเปลี่ยน backend แอปเล็กหน้าเดียวอาจไม่ต้องมี Repository และการเพิ่ม abstraction เพื่อจำนวนไฟล์หรือเลียนแบบตัวอย่างไม่ได้ตอบปัญหาของโปรเจกต์',
+    source: 'PDF หน้า 53',
+  },
+  {
+    id: 35,
+    topic: 'Dependency Injection / get_it lifecycle',
+    chapter: 'บทที่ 5',
+    prompt: 'ต้องการ Dio ที่สร้างเมื่อขอครั้งแรกแล้วใช้ตัวเดิม และ NotesBloc ที่สร้างใหม่ทุกครั้งที่ขอ ควรลงทะเบียน get_it แบบใด?',
+    options: [
+      'Dio ใช้ registerFactory; NotesBloc ใช้ registerSingleton',
+      'ทั้งสองใช้ registerFactory เพื่อใช้ instance เดิม',
+      'ทั้งสองใช้ registerLazySingleton เพื่อสร้าง Bloc ใหม่ทุกครั้ง',
+      'Dio ใช้ registerLazySingleton; NotesBloc ใช้ registerFactory',
+    ],
+    answer: 3,
+    explanation: 'registerLazySingleton สร้างเมื่อถูกขอครั้งแรกแล้วคืนตัวเดิม ส่วน registerFactory สร้างใหม่ทุกครั้ง registerSingleton สร้างทันทีตอนลงทะเบียน ตัวเลือกอื่นจึงสลับความหมายหรือตอบไม่ตรงวงจรชีวิตที่ต้องการ',
+    source: 'PDF หน้า 58',
+  },
+  {
+    id: 36,
+    topic: 'Code generation / freezed',
+    chapter: 'บทที่ 5',
+    prompt: 'ต้องเปลี่ยน pinned ของ Note โดยรักษาแนวคิด immutable และให้ model ที่ข้อมูลเหมือนกันเปรียบเทียบเท่ากันได้ freezed ช่วยอย่างไร?',
+    options: [
+      'สร้าง copyWith เพื่อคืน model ใหม่ พร้อม == และ hashCode ตามฟิลด์',
+      'แก้ object เดิมทุกจุดพร้อมกันโดยไม่สร้างค่าใหม่',
+      'สร้าง Dio client และ refresh token ให้โดยอัตโนมัติ',
+      'ทำให้ทุก model กลายเป็น JSON และยกเลิก Entity ได้',
+    ],
+    answer: 0,
+    explanation: 'freezed สร้าง immutable model พร้อม copyWith และ value equality ซึ่งเหมาะกับ Bloc และ family provider copyWith สร้างค่าที่แก้บางฟิลด์โดยไม่ mutate เดิม ส่วน network และการแยก DTO/Entity เป็นคนละหน้าที่',
+    source: 'PDF หน้า 58–60',
+  },
+  {
+    id: 37,
+    topic: 'Code generation / JSON converters',
+    chapter: 'บทที่ 5',
+    prompt: 'PHP API ส่ง is_pinned เป็น “1” แต่ Dart ใช้ bool isPinned วิธีใดตรงกับแนวทาง json_serializable ในเอกสาร?',
+    options: [
+      'ให้ทุก widget แปลง “1” เป็น bool เอง',
+      'ใช้ FieldRename.snake จับคู่ชื่อ และ JsonConverter แปลงค่าที่ DTO',
+      'ใช้ freezed กับ Entity แล้วไม่ต้องแปลงรูปแบบข้อมูลอีก',
+      'ลบชนิด bool แล้วใช้ dynamic ใน Domain ทั้งหมด',
+    ],
+    answer: 1,
+    explanation: 'FieldRename.snake จัดการชื่อ isPinned ↔ is_pinned ส่วน converter จัดการค่า “1”/“0” ให้เป็น bool ทั้งสองเป็นงานที่ DTO ทำรวมไว้ที่เดียว การแปลงในทุก widget ซ้ำซ้อน freezed ไม่ได้เดารูปแบบ backend ให้เอง และ dynamic ทำให้เสียการตรวจชนิด',
+    source: 'PDF หน้า 61–62',
+  },
+  {
+    id: 38,
+    topic: 'Code generation / generated files',
+    chapter: 'บทที่ 5',
+    prompt: 'แก้ไฟล์ note_dto.g.dart ด้วยมือแล้วโค้ดที่แก้หายหลังรัน build_runner ควรจัดการอย่างไร?',
+    options: [
+      'หยุดใช้ generator แล้วแก้ .g.dart หลังทุก build',
+      'ย้าย .g.dart ไปใส่ใน widget เพื่อไม่ให้ถูกสร้างใหม่',
+      'ปิด analyzer แล้วถือว่าไฟล์ generate ถูกต้องเสมอ',
+      'แก้นิยาม DTO, annotation หรือ converter ต้นทาง แล้ว generate ใหม่',
+    ],
+    answer: 3,
+    explanation: '.g.dart และ .freezed.dart เป็นผลผลิตที่ generator เขียนทับได้ จึงต้องแก้ต้นทางและรัน build_runner ใหม่ หากทีมไม่ commit ไฟล์ generate ต้องเพิ่มขั้นตอนสร้างใน CI ด้วย การแก้ปลายทางซ้ำหรือปิด analyzer ไม่ได้แก้สาเหตุ',
+    source: 'PDF หน้า 59 และ 63–64',
+  },
+  {
+    id: 39,
+    topic: 'Networking / token storage',
+    chapter: 'บทที่ 6',
+    prompt: 'ตามเอกสาร TokenStore ที่เก็บ access token และ refresh token ควรใช้สิ่งใดเป็นที่เก็บหลักบนอุปกรณ์?',
+    options: [
+      'SharedPreferences โดยถือว่าข้อมูลใน backup อ่านไม่ได้',
+      'ใส่ token ใน URL ทุก request เพื่อให้ง่ายต่อการ debug',
+      'flutter_secure_storage',
+      'ฝัง token จริงไว้ใน source code เพื่อไม่ให้ผู้ใช้เปลี่ยน',
+    ],
+    answer: 2,
+    explanation: 'เอกสารแนะนำ secure storage สำหรับ token ซึ่งเป็นข้อมูลรับรองสิทธิ์ และเตือนว่า SharedPreferences อาจถูกอ่านจาก backup ได้ การใส่ URL หรือฝัง source code ยังเพิ่มโอกาสเผยข้อมูลรับรอง',
+    source: 'PDF หน้า 70',
+  },
+  {
+    id: 40,
+    topic: 'Networking / Failure & Result',
+    chapter: 'บทที่ 6',
+    prompt: 'repository จับ DioException ชนิด connectionTimeout ได้ ควรส่งผลให้ Presentation อย่างไรตามแนว Failure/Result?',
+    options: [
+      'แปลงเป็น Failure.network แล้วคืน Result.failure เพื่อให้ UI เลือกข้อความและการตอบสนองได้',
+      'คืนรายการว่างเป็น success เพื่อซ่อนความล้มเหลว',
+      'ส่ง DioException ให้ทุก widget ตรวจชนิดเอง',
+      'แปลงเป็น UnauthorizedFailure ทุกครั้งเพื่อให้ผู้ใช้ล็อกอินใหม่',
+    ],
+    answer: 0,
+    explanation: 'Data layer แปลงรายละเอียด network เป็น Failure ที่ชั้นอื่นใช้ได้ connectionTimeout จัดเป็น network failure ไม่ใช่ unauthorized การคืนรายการว่างปะปนกับกรณีข้อมูลไม่มีจริง และการส่ง DioException ไป UI ทำให้ Presentation ผูกกับ Dio',
+    source: 'PDF หน้า 71–73',
+  },
+  {
+    id: 41,
+    topic: 'Networking / backoff & jitter',
+    chapter: 'บทที่ 6',
+    prompt: 'GET ล้มเหลวชั่วคราวด้วย 503 และอนุญาตให้ retry ได้ ทำไมควรใช้ exponential backoff พร้อม jitter?',
+    options: [
+      'เพื่อรับประกันว่าเซิร์ฟเวอร์จะสำเร็จในครั้งถัดไป',
+      'เพิ่มช่วงรอและกระจายเวลา retry ลดการยิงซ้ำพร้อมกันจากหลายเครื่อง',
+      'เพื่อเปลี่ยน GET เป็น POST โดยอัตโนมัติ',
+      'เพื่อให้ retry ได้ไม่จำกัดโดยไม่ต้องมี maxAttempts',
+    ],
+    answer: 1,
+    explanation: 'backoff เพิ่มช่วงรอระหว่างความพยายาม และ jitter เติมความแปรผันไม่ให้หลายเครื่อง retry พร้อมกันเมื่อเซิร์ฟเวอร์ฟื้น แต่ไม่ได้รับประกันผล ไม่เปลี่ยน HTTP method และยังต้องจำกัดจำนวนครั้งและเลือกความล้มเหลวที่ retry ได้',
+    source: 'PDF หน้า 73–74',
+  },
+  {
+    id: 42,
+    topic: 'Networking / offline sync queue',
+    chapter: 'บทที่ 6',
+    prompt: 'ผู้ใช้สร้างโน้ตตอนออฟไลน์ ตามตัวอย่าง sync queue ข้อใดอธิบายลำดับที่เหมาะสม?',
+    options: [
+      'รอจนออนไลน์เท่านั้น และไม่เก็บงานที่ผู้ใช้พิมพ์ไว้',
+      'สร้าง id จริงขึ้นเอง แล้วถือว่าส่ง backend สำเร็จแน่นอน',
+      'เมื่อเห็น Wi-Fi ให้ล้าง pending ทั้งหมดโดยไม่ตรวจผล request',
+      'บันทึก local พร้อม pending create และ id ชั่วคราว แล้วส่งตามคิวและแทนด้วย id จริงเมื่อสำเร็จ',
+    ],
+    answer: 3,
+    explanation: 'local และ pending operation รักษางานของผู้ใช้ระหว่างออฟไลน์ เมื่อส่ง create สำเร็จจึงแทน id ชั่วคราวด้วย id จริง หากเน็ตหลุดต้องหยุดคิวและลองต่อภายหลัง การพบ Wi-Fi ไม่ได้ยืนยันว่าถึงเซิร์ฟเวอร์ จึงยังล้าง pending โดยไม่ดูผลไม่ได้',
+    source: 'PDF หน้า 76–78',
+  },
+  {
+    id: 43,
+    topic: 'Performance / isolates',
+    chapter: 'บทที่ 7',
+    prompt: 'แอป parse JSON ขนาดใหญ่บน main isolate แม้ใส่ async/await แล้วยังทำให้ UI ค้าง แนวทางใดเหมาะกับงาน CPU หนักนี้?',
+    options: [
+      'ใส่ await เพิ่มทุกบรรทัดเพื่อให้ CPU ทำงานขนานเอง',
+      'ย้าย parsing ไปไว้ใน build() เพื่อให้ Flutter จัดการ',
+      'ใช้ Isolate.run หรือ compute โดยประเมินต้นทุนการส่งข้อมูลและสร้าง isolate',
+      'ครอบหน้าจอด้วย RepaintBoundary เพื่อย้าย parsing ไป Raster thread',
+    ],
+    answer: 2,
+    explanation: 'async ช่วยงานที่รอ I/O แต่ไม่ย้ายการคำนวณออกจาก main isolate งาน CPU หนักจึงควรย้ายไป isolate อื่นเมื่อคุ้มต้นทุน RepaintBoundary แยกงาน paint ไม่ใช่ parsing และการคำนวณใน build ยิ่งบล็อก UI',
+    source: 'PDF หน้า 84–85',
+  },
+  {
+    id: 44,
+    topic: 'Performance / image memory',
+    chapter: 'บทที่ 7',
+    prompt: 'แสดงภาพ 4000×3000 ในช่อง 80×80 แล้วใช้แรมมาก การกำหนด width/height สำหรับ layout อย่างเดียวไม่พอ ควรทำอะไรเพิ่มเติม?',
+    options: [
+      'กำหนด cacheWidth/cacheHeight ตามขนาดแสดงจริงและ devicePixelRatio พร้อมใช้ thumbnail ที่เหมาะสม',
+      'โหลดภาพต้นฉบับทุกครั้งเพื่อให้ได้รายละเอียดสูงที่สุด',
+      'เพิ่ม Opacity ครอบภาพเพื่อให้ใช้แรมน้อยลง',
+      'สร้าง Image widget ทุกภาพล่วงหน้าใน Column',
+    ],
+    answer: 0,
+    explanation: 'ขนาด decode มีผลต่อแรม ภาพ 4000×3000 ที่ 4 ไบต์ต่อพิกเซลใช้ราว 48 MB แม้แสดงเล็ก cacheWidth/cacheHeight ลดขนาด decode โดยเผื่อ devicePixelRatio ส่วน thumbnail ลดข้อมูลที่โหลด การลด opacity หรือสร้างทุกภาพล่วงหน้าไม่แก้ปัญหานี้',
+    source: 'PDF หน้า 86',
+  },
+  {
+    id: 45,
+    topic: 'Testing / golden',
+    chapter: 'บทที่ 8',
+    prompt: 'ต้องตรวจว่า NoteTile ที่ปักหมุดยังมีหน้าตาเหมือนภาพต้นแบบหลังแก้โค้ด ควรใช้การทดสอบใด?',
+    options: [
+      'Unit test ของสูตรคำนวณวันที่อย่างเดียว',
+      'Golden test และควบคุมฟอนต์/สภาพแวดล้อมที่ใช้สร้างและเทียบภาพ',
+      'ตรวจจำนวน method ที่เรียกด้วย mock อย่างเดียว',
+      'Integration test ของ login อย่างเดียว',
+    ],
+    answer: 1,
+    explanation: 'Golden test เปรียบเทียบภาพที่ render กับภาพต้นแบบ จึงตรวจความเปลี่ยนแปลงหน้าตา component ได้ ฟอนต์และ OS อาจทำให้ภาพต่าง จึงต้องควบคุมสภาพแวดล้อม การตรวจ logic, method call หรือ flow login อย่างเดียวไม่ได้เทียบภาพ NoteTile',
+    source: 'PDF หน้า 98–99',
+  },
+  {
+    id: 46,
+    topic: 'Testing / fake vs mock',
+    chapter: 'บทที่ 8',
+    prompt: 'ต้องทดสอบ use case ด้วย repository ที่เก็บ List ในหน่วยความจำ และอีกเทสต้องบังคับ remote source ให้ throw timeout ข้อใดแยก fake กับ mock ได้ถูกต้อง?',
+    options: [
+      'fake และ mock จำเป็นต้องเรียก backend จริงทั้งคู่',
+      'mock คือฐานข้อมูล production ส่วน fake คือไฟล์ golden',
+      'fake ใช้ได้เฉพาะ widget test และ mock ใช้ได้เฉพาะ integration test',
+      'fake เป็น implementation แบบง่ายที่ทำงานได้ ส่วน mock ตั้งพฤติกรรมคืนค่าหรือ throw เพื่อควบคุมเทสได้',
+    ],
+    answer: 3,
+    explanation: 'fake ในเอกสารเก็บข้อมูลจริงแบบง่ายใน List และใช้ซ้ำในเทส Domain ส่วน mock ของ remote source ให้กำหนดผลหรือ exception ได้เพื่อทดสอบ mapping โดยไม่เรียกเครือข่ายจริง ทั้งสองไม่ได้จำกัดเฉพาะระดับการทดสอบตามตัวเลือกอื่น',
+    source: 'PDF หน้า 91 และ 93–94',
+  },
+  {
+    id: 47,
+    topic: 'Navigation / go vs push',
+    chapter: 'บทที่ 9',
+    prompt: 'หน้าเลือกสีต้องเปิดทับหน้าปัจจุบัน แล้วกลับมาพร้อมสีที่เลือก context.go กับ context.push ต่างกันอย่างไรตามเอกสาร?',
+    options: [
+      'go เพิ่มหน้าทับเสมอ ส่วน push แทนที่ stack ตาม URL',
+      'ทั้งสองทำงานเหมือนกัน และคืนผลไม่ได้',
+      'push วางหน้าทับ stack เดิม ส่วน go จัด stack ตาม URL และโครงสร้าง route ที่ประกาศ',
+      'push ใช้ได้เฉพาะหน้าแรกของแอป',
+    ],
+    answer: 2,
+    explanation: 'เอกสารใช้ push สำหรับกรณีต้องกลับมาที่เดิมพร้อมผล เช่น เลือกสี ส่วน go เปลี่ยนตำแหน่งตาม URL และ route ที่ประกาศ จึงให้ผลสอดคล้องกับ deep link ตัวเลือกอื่นสลับความหมายหรือกำหนดข้อจำกัดที่ไม่ได้มี',
+    source: 'PDF หน้า 106',
+  },
+  {
+    id: 48,
+    topic: 'Native / platform channels',
+    chapter: 'บทที่ 9',
+    prompt: 'ต้องขอระดับแบตเตอรี่หนึ่งครั้ง รับสถานะประหยัดพลังงานต่อเนื่อง และลดข้อผิดพลาดของสัญญา Dart/native ข้อใดจับคู่ได้ถูกต้อง?',
+    options: [
+      'MethodChannel สำหรับเรียกแล้วรับผล, EventChannel สำหรับ stream, pigeon สำหรับ generate สัญญาที่มีชนิดข้อมูลชัดเจน',
+      'EventChannel สำหรับเรียกครั้งเดียว, MethodChannel สำหรับ stream, pigeon สำหรับเซ็น APK',
+      'go_router สำหรับข้อมูลแบตเตอรี่, freezed สำหรับ channel, build_runner สำหรับรับ stream จาก OS',
+      'ทุกงานใช้ชื่อ method เป็น string โดย pigeon ไม่มีผลต่อการตรวจสัญญา',
+    ],
+    answer: 0,
+    explanation: 'MethodChannel เหมาะกับ request/response ส่วน EventChannel รับเหตุการณ์ต่อเนื่อง pigeon สร้างโค้ดทั้ง Dart, Kotlin และ Swift จากสัญญาที่ระบุชนิด ช่วยให้ความไม่ตรงกันถูกพบได้เร็ว มันไม่ใช่เครื่องมือ navigation หรือ signing',
+    source: 'PDF หน้า 107–108 และ 110–111',
+  },
+  {
+    id: 49,
+    topic: 'Release / signing',
+    chapter: 'บทที่ 10',
+    prompt: 'ก่อนปล่อย Android release ทีมควรจัดการ keystore และ key.properties อย่างไรตามเอกสาร?',
+    options: [
+      'commit keystore และรหัสผ่านใน repository สาธารณะเพื่อให้ CI ใช้ง่าย',
+      'ใช้ release signing ของทีม เก็บกุญแจและรหัสผ่านอย่างปลอดภัย สำรองไว้ และไม่ commit key.properties',
+      'ใช้ debug key ทุกเวอร์ชันเพราะไม่ต้องสำรองกุญแจ',
+      'สร้าง signing identity ใหม่ทุกครั้งที่อัปเดตแอป',
+    ],
+    answer: 1,
+    explanation: 'การอัปเดตแอปต้องรักษา signing identity และเก็บกุญแจอย่างมีวินัย เอกสารแนะนำ password manager และสำรองอย่างน้อยสองที่ โดยห้าม commit key.properties; Play App Signing ช่วยจัดการ app signing key และแยก upload key ได้ การเปิดเผยกุญแจหรือใช้ debug key ไม่ใช่แนวทาง release',
+    source: 'PDF หน้า 117–119',
+  },
+  {
+    id: 50,
+    topic: 'Release / obfuscation & symbols',
+    chapter: 'บทที่ 10',
+    prompt: 'ปล่อย build ด้วย --obfuscate --split-debug-info=build/symbols/prod แล้วได้รับ crash report ทำไมต้องเก็บ symbols แยกตามเวอร์ชัน?',
+    options: [
+      'เพราะ symbols เป็นที่เก็บ secret ที่ผู้ใช้ถอดออกมาไม่ได้',
+      'เพราะ symbols ใช้แทน keystore สำหรับอัปเดตแอป',
+      'เพราะ obfuscate ป้องกัน crash ได้ก็ต่อเมื่อมี symbols',
+      'เพื่อใช้ถอด stack trace ของ build ที่เปลี่ยนชื่อ class/method ให้อ่านได้',
+    ],
+    answer: 3,
+    explanation: 'obfuscate เปลี่ยนชื่อใน Dart และ split-debug-info เก็บข้อมูลสำหรับแปล stack trace แยกไว้ ต้องใช้ symbols ของเวอร์ชันที่เกิด crash การ obfuscate ไม่ได้เข้ารหัส secret ไม่ได้แทน signing และไม่ได้ป้องกัน crash',
+    source: 'PDF หน้า 119',
+  },
+];
+
 const examSets = [
   {
     id: 'trial-20',
@@ -287,12 +740,15 @@ const examSets = [
     id: 'mock-50',
     title: 'Mock สอบจริง 50 ข้อ',
     eyebrow: 'MOCK EXAM · 50 ITEMS',
-    description: 'พื้นที่สำหรับชุดเต็มในรอบถัดไป โดยใช้หน้าจอและระบบตรวจชุดเดียวกัน',
-    meta: 'เร็ว ๆ นี้',
-    status: 'soon',
+    description: 'ซ้อมครบ 10 บทด้วยโจทย์แนวคิดและสถานการณ์ 50 ข้อ พร้อมเฉลยและเลขหน้าอ้างอิง',
+    meta: 'ประมาณ 45–60 นาที',
     questions: [],
   },
 ];
+
+examSets[1].questions = [...examSets[0].questions, ...mockExtraQuestions]
+  .sort((a, b) => Number(a.chapter.replace('บทที่ ', '')) - Number(b.chapter.replace('บทที่ ', '')))
+  .map((question, index) => ({ ...question, id: index + 1, options: [...question.options] }));
 
 const app = document.querySelector('#app');
 const letters = ['A', 'B', 'C', 'D'];
@@ -351,13 +807,13 @@ function renderHome() {
           <div class="art-line"><b>02</b> measure before you optimize</div>
           <div class="art-line"><b>03</b> ship with confidence</div>
         </div>
-        <div class="art-sticker">20<br />QUESTIONS</div>
+        <div class="art-sticker">50<br />QUESTIONS</div>
       </div>
     </section>
 
     <section aria-labelledby="set-heading">
       <div class="section-head">
-        <div><h2 id="set-heading">เลือกสนามที่จะลง</h2><p>เริ่มจากชุดทดลอง แล้วค่อยเพิ่ม Mock 50 ข้อได้ในข้อมูลชุดเดียวกัน</p></div>
+        <div><h2 id="set-heading">เลือกสนามที่จะลง</h2><p>เช็กพื้นฐานด้วย 20 ข้อ หรือซ้อมครบทุกบทด้วย Mock 50 ข้อ</p></div>
         <span class="eyebrow">PICK A SET</span>
       </div>
       <div class="set-grid">
@@ -382,6 +838,7 @@ function renderHome() {
 }
 
 function renderQuiz() {
+  const navScrollLeft = app.querySelector('.nav-grid')?.scrollLeft || 0;
   const set = activeSet();
   const question = set.questions[state.index];
   const progress = ((state.index + 1) / set.questions.length) * 100;
@@ -398,7 +855,7 @@ function renderQuiz() {
       <div class="quiz-layout">
         <aside class="question-nav" aria-label="ตัวนำทางข้อสอบ">
           <h2>แผนที่ข้อสอบ</h2><p>${answeredCount()} จาก ${set.questions.length} ข้อที่ตอบแล้ว</p>
-          <div class="nav-grid">
+          <div class="nav-grid" tabindex="0" aria-label="เลื่อนเพื่อเลือกข้อสอบ">
             ${set.questions.map((item, index) => `<button class="nav-dot ${index === state.index ? 'current' : ''} ${state.answers[index] !== null && state.answers[index] !== undefined ? 'answered' : ''}" data-action="jump" data-index="${index}" aria-label="ไปข้อ ${index + 1}">${index + 1}</button>`).join('')}
           </div>
           <div class="nav-legend"><span class="legend-item"><i class="legend-swatch current"></i>กำลังทำ</span><span class="legend-item"><i class="legend-swatch answered"></i>ตอบแล้ว</span></div>
@@ -421,6 +878,16 @@ function renderQuiz() {
       </div>
     </section>
   `;
+  // Keep only the navigation strip scrolled, not the whole mobile page.
+  const navGrid = app.querySelector('.nav-grid');
+  const currentButton = navGrid?.querySelector('.current');
+  if (navGrid && currentButton && navGrid.scrollWidth > navGrid.clientWidth) {
+    navGrid.scrollLeft = navScrollLeft;
+    const strip = navGrid.getBoundingClientRect();
+    const button = currentButton.getBoundingClientRect();
+    if (button.left < strip.left) navGrid.scrollLeft -= strip.left - button.left;
+    if (button.right > strip.right) navGrid.scrollLeft += button.right - strip.right;
+  }
 }
 
 function resultTopics() {
@@ -464,7 +931,7 @@ function renderResult() {
         <div>
           <p class="eyebrow">RESULTS · ${escapeHtml(set.title)}</p>
           <h1>สนามนี้ทำได้<br /><em>${points}/${total}</em> คะแนน</h1>
-          <p class="result-copy">${points >= 16 ? 'พื้นฐานแน่นมาก — ลองกลับไปเก็บรายละเอียดจุดหลอก แล้วค่อยลุย Mock 50 ข้อ' : points >= 11 ? 'โครงสร้างหลักเริ่มมาแล้ว — ทวนหัวข้อสีส้มก่อน แล้วลองทำซ้ำเพื่อจับ pattern ให้แม่นขึ้น' : 'ไม่เป็นไร นี่คือแผนที่สำหรับอ่านต่อ — เริ่มจากหัวข้อที่ผิดบ่อยที่สุด แล้วกลับมาลองอีกครั้ง'}</p>
+          <p class="result-copy">${percent >= 80 ? 'พื้นฐานแน่นมาก — กลับไปเก็บรายละเอียดข้อที่พลาด แล้วลองทำซ้ำให้มั่นใจ' : percent >= 55 ? 'โครงสร้างหลักเริ่มมาแล้ว — ทวนหัวข้อสีส้มก่อน แล้วลองทำซ้ำเพื่อจับ pattern ให้แม่นขึ้น' : 'ไม่เป็นไร นี่คือแผนที่สำหรับอ่านต่อ — เริ่มจากหัวข้อที่ผิดบ่อยที่สุด แล้วกลับมาลองอีกครั้ง'}</p>
           <div class="result-actions"><button class="btn primary" data-action="review">ดูเฉลยและคำอธิบาย ↓</button><button class="btn" data-action="retry">ทำชุดนี้ใหม่</button><button class="btn ghost" data-action="home">เลือกชุดอื่น</button></div>
         </div>
         <div class="score-ring" style="--score:${percent}" aria-label="ได้ ${points} จาก ${total} คะแนน"><div class="score-inner"><span class="score-number">${percent}%</span><span class="score-sub">${wrong ? `${wrong} ข้อควรทวน` : 'ครบทุกข้อ'}</span></div></div>
@@ -498,6 +965,7 @@ function startSet(setId) {
   setAnswers();
   state.screen = 'quiz';
   render();
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 function submitExam() {
