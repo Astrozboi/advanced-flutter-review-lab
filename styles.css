@@ -288,6 +288,39 @@ h1 em { color: var(--accent); font-style: normal; }
 .empty-state h2 { margin-bottom: 7px; }
 .empty-state p { color: var(--muted); }
 
+.learner-panel { margin: 16px 0 10px; padding: 24px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.learner-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.learner-panel-head .eyebrow { margin-bottom: 6px; }
+.learner-panel h2 { margin: 0 0 5px; font-size: 1.5rem; letter-spacing: -0.04em; }
+.learner-panel-head p:not(.eyebrow) { margin-bottom: 0; color: var(--ink-soft); font-size: 0.85rem; }
+.learner-panel-head .btn { flex: 0 0 auto; max-width: 50%; overflow-wrap: anywhere; }
+.learner-list { display: flex; flex-wrap: wrap; gap: 9px; margin: 18px 0; }
+.learner-choice { display: grid; gap: 2px; max-width: 100%; min-height: 46px; padding: 10px 16px; color: var(--ink-soft); text-align: left; overflow-wrap: anywhere; background: #eef4f2; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }
+.learner-choice.current { color: var(--accent-dark); background: #edf4ff; border-color: var(--accent); }
+.learner-choice small { font-size: 0.68rem; }
+.learner-form { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.learner-field { flex: 1 1 220px; min-width: 0; }
+.learner-field label { display: block; margin-bottom: 6px; color: var(--ink-soft); font-size: 0.82rem; font-weight: 600; }
+.learner-field input { width: 100%; min-height: 46px; padding: 10px 13px; color: var(--ink); background: #fbfdfb; border: 1px solid #bfd3d0; border-radius: 11px; font: inherit; font-size: 0.95rem; }
+.learner-field input:focus-visible { outline: 3px solid rgba(34,105,233,0.25); border-color: var(--accent); }
+.learner-message { margin: 12px 0 0; color: var(--accent-dark); font-size: 0.84rem; overflow-wrap: anywhere; }
+.learner-note { margin: 14px 0 0; color: var(--muted); font-size: 0.73rem; }
+.learner-badge { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 18px; padding: 12px 16px; color: var(--accent-dark); background: #edf4ff; border: 1px solid #d3e4ff; border-radius: 13px; overflow-wrap: anywhere; }
+.learner-badge span { font-size: 0.77rem; }
+.learner-badge strong { min-width: 0; max-width: 100%; }
+.learner-badge small { color: var(--ink-soft); font-size: 0.72rem; }
+.attempt-save-note { margin: -6px 0 15px; color: var(--ink-soft); font-size: 0.78rem; overflow-wrap: anywhere; }
+.storage-warning { display: block; margin: 12px 0; padding: 10px 13px; color: #9b4939; background: var(--coral-soft); border-radius: 10px; font-size: 0.8rem; overflow-wrap: anywhere; }
+.history-shell { padding: 24px 0 45px; }
+.history-shell h1 { margin: 0 0 12px; font-size: clamp(1.65rem, 4vw, 2.6rem); line-height: 1.2; overflow-wrap: anywhere; }
+.history-list { display: grid; gap: 14px; margin-top: 24px; }
+.history-card { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 22px; padding: 22px; background: var(--paper); border: 1px solid var(--line); border-radius: 18px; }
+.history-card h2 { margin: 0 0 5px; font-size: 1.1rem; }
+.history-card p { margin: 0; color: var(--muted); font-size: 0.78rem; overflow-wrap: anywhere; }
+.history-score { display: grid; text-align: center; color: var(--accent-dark); font-family: 'Space Grotesk', sans-serif; }
+.history-score strong { font-size: 1.5rem; }
+.history-score span { color: var(--muted); font-size: 0.8rem; }
+
 @media (max-width: 860px) {
   .hero, .result-hero { grid-template-columns: 1fr; gap: 25px; }
   .hero { padding-top: 28px; }
@@ -303,6 +336,16 @@ h1 em { color: var(--accent); font-style: normal; }
 }
 
 @media (max-width: 600px) {
+  .learner-panel { padding: 18px 16px; border-radius: 20px; }
+  .learner-panel-head { align-items: stretch; flex-direction: column; gap: 13px; }
+  .learner-panel-head .btn { max-width: 100%; }
+  .learner-form { align-items: stretch; flex-direction: column; }
+  .learner-field { flex: 0 0 auto; }
+  .learner-badge { gap: 4px 10px; padding: 11px 13px; }
+  .learner-badge small { flex: 0 0 100%; }
+  .history-shell .section-head { align-items: stretch; flex-direction: column; }
+  .history-card { grid-template-columns: minmax(0, 1fr) auto; gap: 14px; padding: 18px; }
+  .history-card .btn { grid-column: 1 / -1; }
   .app-shell { width: min(100% - 24px, 1180px); }
   .topbar { min-height: 74px; }
   .topbar-badge { padding: 6px 9px; font-size: 0.64rem; }
