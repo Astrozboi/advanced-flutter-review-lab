@@ -752,16 +752,236 @@ examSets[1].questions = [...examSets[0].questions, ...mockExtraQuestions]
 
 const app = document.querySelector('#app');
 const letters = ['A', 'B', 'C', 'D'];
+const learnerKeys = {
+  profile: 'flutter-review-lab:v1:profile:',
+  attempt: 'flutter-review-lab:v1:attempt:',
+  selected: 'flutter-review-lab:v1:selected',
+};
+const sessionRecords = new Map();
+let storageWarning = '';
+
+function newRecordId() {
+  return typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function validRecordId(id) {
+  return typeof id === 'string' && /^[a-zA-Z0-9_-]{8,100}$/.test(id);
+}
+
+function validProfile(profile) {
+  return profile && validRecordId(profile.id) && typeof profile.name === 'string'
+    && profile.name.trim().length > 0 && profile.name.length <= 40;
+}
+
+function validAttempt(attempt) {
+  return attempt && validRecordId(attempt.id) && validRecordId(attempt.profileId)
+    && typeof attempt.profileName === 'string' && attempt.profileName.length <= 40
+    && typeof attempt.setId === 'string' && typeof attempt.setTitle === 'string'
+    && Number.isFinite(Date.parse(attempt.submittedAt))
+    && Array.isArray(attempt.questions) && attempt.questions.length > 0
+    && Array.isArray(attempt.answers) && attempt.answers.length === attempt.questions.length
+    && attempt.questions.every((question, index) => question
+      && Number.isInteger(question.id) && question.id > 0
+      && ['prompt', 'topic', 'chapter', 'explanation', 'source'].every(field => typeof question[field] === 'string')
+      && Array.isArray(question.options) && question.options.length === 4
+      && question.options.every(option => typeof option === 'string')
+      && Number.isInteger(question.answer) && question.answer >= 0 && question.answer < 4
+      && Number.isInteger(attempt.answers[index]) && attempt.answers[index] >= 0 && attempt.answers[index] < 4);
+}
+
+function readRecords(prefix, validate) {
+  const records = new Map();
+  try {
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith(prefix)) continue;
+      try {
+        const record = JSON.parse(localStorage.getItem(key));
+        if (!validate(record) || key !== `${prefix}${record.id}`) throw new Error('Invalid record');
+        records.set(key, record);
+      } catch {
+        storageWarning = 'บางประวัติในเครื่องอ่านไม่ได้ ข้อมูลเดิมยังไม่ถูกลบหรือเขียนทับ';
+      }
+    }
+  } catch {
+    storageWarning = 'เบราว์เซอร์ไม่อนุญาตให้เก็บข้อมูล ชื่อและผลรอบนี้จะอยู่เฉพาะขณะเปิดหน้านี้';
+  }
+  // Each attempt has its own key, so another tab cannot overwrite a shared result list.
+  sessionRecords.forEach((record, key) => {
+    if (key.startsWith(prefix) && validate(record)) records.set(key, record);
+  });
+  return [...records.values()];
+}
+
+function writeRecord(key, record) {
+  try {
+    localStorage.setItem(key, JSON.stringify(record));
+    sessionRecords.delete(key);
+    return true;
+  } catch {
+    sessionRecords.set(key, record);
+    storageWarning = 'บันทึกลงเครื่องไม่ได้ (พื้นที่เต็มหรือเบราว์เซอร์ปิดการเก็บข้อมูล) ผลนี้จะอยู่เฉพาะขณะเปิดหน้านี้';
+    return false;
+  }
+}
+
+function savedProfiles() {
+  return readRecords(learnerKeys.profile, validProfile).sort((a, b) => a.name.localeCompare(b.name, 'th'));
+}
+
+function profileById(id) {
+  return savedProfiles().find(profile => profile.id === id);
+}
+
+function selectedProfileId() {
+  try { return localStorage.getItem(learnerKeys.selected); }
+  catch { return null; }
+}
+
 const state = {
   screen: 'home',
   setId: 'trial-20',
   index: 0,
   answers: [],
   submitted: false,
+  profileId: selectedProfileId(),
+  profileFormMode: 'create',
+  profileMessage: '',
+  attemptProfileId: null,
+  attemptProfileName: '',
+  attemptId: null,
+  resultAttempt: null,
+  resultSaved: false,
 };
 
 function activeSet() {
+  if (state.resultAttempt && (state.screen === 'result' || state.screen === 'review')) {
+    return { id: state.resultAttempt.setId, title: state.resultAttempt.setTitle, questions: state.resultAttempt.questions };
+  }
   return examSets.find((set) => set.id === state.setId) || examSets[0];
+}
+
+function activeProfile() {
+  return profileById(state.profileId);
+}
+
+function chooseProfile(profileId) {
+  if (state.screen === 'quiz' || !profileById(profileId)) return;
+  state.profileId = profileId;
+  state.profileFormMode = 'create';
+  state.profileMessage = '';
+  state.screen = 'home';
+  try { localStorage.setItem(learnerKeys.selected, profileId); }
+  catch { storageWarning = 'จำชื่อหลังปิดหน้าไม่ได้ แต่ยังทำข้อสอบในรอบนี้ได้'; }
+  render();
+}
+
+function saveLearner(rawName) {
+  if (state.screen !== 'home') return;
+  const name = String(rawName).normalize('NFC').trim().replace(/\s+/g, ' ');
+  if (!name || name.length > 40) {
+    state.profileMessage = 'กรุณาใส่ชื่อ 1–40 ตัวอักษร';
+    render();
+    return;
+  }
+  const profiles = savedProfiles();
+  const current = activeProfile();
+  const renaming = state.profileFormMode === 'rename' && current;
+  const duplicate = profiles.find(profile => profile.name.toLocaleLowerCase('th') === name.toLocaleLowerCase('th')
+    && (!renaming || profile.id !== current.id));
+  if (duplicate) {
+    if (renaming) {
+      state.profileMessage = 'ชื่อนี้ถูกใช้แล้ว กรุณาใช้ชื่อเล่นหรือเติมเลขท้ายให้ต่างกัน';
+      render();
+    } else {
+      chooseProfile(duplicate.id);
+      state.profileMessage = 'ชื่อนี้มีอยู่แล้ว เลือกชื่อเดิมให้แล้ว — ถ้าเป็นคนละคน ให้ใช้ชื่อที่ต่างกัน';
+      render();
+    }
+    return;
+  }
+  const profile = renaming ? { ...current, name } : { id: newRecordId(), name, createdAt: new Date().toISOString() };
+  const persisted = writeRecord(`${learnerKeys.profile}${profile.id}`, profile);
+  chooseProfile(profile.id);
+  state.profileMessage = persisted ? (renaming ? 'แก้ชื่อแล้ว ประวัติเดิมยังอยู่ครบ' : `พร้อมติวแล้ว ${name}`) : 'ใช้ชื่อนี้ได้ในรอบนี้ แต่ยังบันทึกลงเครื่องไม่ได้';
+  render();
+}
+
+function attemptsForProfile(profileId) {
+  return readRecords(learnerKeys.attempt, validAttempt)
+    .filter(attempt => attempt.profileId === profileId)
+    .sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt));
+}
+
+function attemptScore(attempt) {
+  return attempt.questions.reduce((total, question, index) => total + (attempt.answers[index] === question.answer ? 1 : 0), 0);
+}
+
+function formatAttemptDate(value) {
+  return new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' }).format(new Date(value));
+}
+
+function renderStorageWarning() {
+  return storageWarning ? `<p class="storage-warning" role="status">${escapeHtml(storageWarning)}</p>` : '';
+}
+
+function renderLearnerBadge() {
+  const name = state.resultAttempt?.profileName || state.attemptProfileName;
+  return `<div class="learner-badge"><span>ผู้ทำข้อสอบ</span><strong>${escapeHtml(name)}</strong><small>ผลของรอบนี้จะอยู่ในชื่อนี้</small></div>`;
+}
+
+function renderProfilePanel() {
+  const profiles = savedProfiles();
+  const profile = activeProfile();
+  const renaming = state.profileFormMode === 'rename' && profile;
+  return `
+    <section class="learner-panel" id="learner-panel" aria-labelledby="learner-heading">
+      <div class="learner-panel-head"><div><p class="eyebrow">YOUR STUDY SPACE</p><h2 id="learner-heading">ใครกำลังติว?</h2><p>${profile ? 'ตรวจชื่อให้ถูกก่อนเริ่มสอบ ผลและประวัติจะไม่ปนกับคนอื่น' : 'เพิ่มหรือเลือกชื่อก่อนเริ่มทำข้อสอบ'}</p></div>
+        ${profile ? `<button class="btn" data-action="history">ประวัติของ ${escapeHtml(profile.name)} →</button>` : ''}
+      </div>
+      ${profiles.length ? `<div class="learner-list" aria-label="เลือกผู้ทำข้อสอบ">${profiles.map(item => `<button class="learner-choice ${item.id === state.profileId ? 'current' : ''}" data-action="choose-profile" data-profile="${item.id}" aria-pressed="${item.id === state.profileId}"><span>${escapeHtml(item.name)}</span>${item.id === state.profileId ? '<small>กำลังใช้ชื่อนี้ ✓</small>' : ''}</button>`).join('')}</div>` : ''}
+      <form class="learner-form" data-form="learner">
+        <div class="learner-field"><label for="learner-name">${renaming ? 'แก้ชื่อผู้ทำ (ประวัติเดิมยังอยู่)' : 'เพิ่มชื่อผู้ทำ / ชื่อเล่น'}</label><input id="learner-name" name="learnerName" type="text" maxlength="40" required autocomplete="nickname" placeholder="เช่น ปาม หรือ เพื่อน A" value="${renaming ? escapeHtml(profile.name) : ''}" aria-describedby="learner-note" /></div>
+        <button class="btn primary" type="submit">${renaming ? 'บันทึกชื่อใหม่' : 'เพิ่มชื่อและเลือกใช้'}</button>
+        ${renaming ? '<button class="btn ghost" type="button" data-action="cancel-rename">ยกเลิก</button>' : profile ? '<button class="btn ghost" type="button" data-action="rename-profile">แก้ชื่อที่เลือก</button>' : ''}
+      </form>
+      ${state.profileMessage ? `<p class="learner-message" role="status">${escapeHtml(state.profileMessage)}</p>` : ''}
+      <p class="learner-note" id="learner-note">เก็บในเบราว์เซอร์ของเครื่องนี้เท่านั้น ไม่ส่งชื่อหรือคะแนนขึ้นเว็บ • ไม่ใช่ระบบล็อกอิน คนใช้เครื่องเดียวกันสลับดูชื่อได้ • ล้างข้อมูลเบราว์เซอร์แล้วประวัติจะหาย</p>
+      ${renderStorageWarning()}
+    </section>`;
+}
+
+function renderHistory() {
+  const profile = activeProfile();
+  if (!profile) { state.screen = 'home'; renderHome(); return; }
+  const attempts = attemptsForProfile(profile.id);
+  app.innerHTML = `
+    <section class="history-shell">
+      <div class="section-head"><div><p class="eyebrow">PERSONAL HISTORY</p><h1>ประวัติของ <em>${escapeHtml(profile.name)}</em></h1><p>เฉพาะผลของชื่อนี้ในเบราว์เซอร์เครื่องนี้ • ${attempts.length} รอบ</p></div><button class="btn" data-action="home">← เลือกชื่อ / ทำข้อสอบ</button></div>
+      ${renderStorageWarning()}
+      <div class="history-list">${attempts.length ? attempts.map(attempt => {
+        const points = attemptScore(attempt);
+        const total = attempt.questions.length;
+        return `<article class="history-card"><div><h2>${escapeHtml(attempt.setTitle)}</h2><p>${escapeHtml(formatAttemptDate(attempt.submittedAt))} · ชื่อที่ใช้สอบ: ${escapeHtml(attempt.profileName)}</p>${sessionRecords.has(`${learnerKeys.attempt}${attempt.id}`) ? '<small class="storage-warning">ยังไม่บันทึกลงเครื่อง อยู่เฉพาะขณะเปิดหน้านี้</small>' : ''}</div><div class="history-score"><strong>${points}/${total}</strong><span>${Math.round(points / total * 100)}%</span></div><button class="btn" data-action="open-attempt" data-attempt="${attempt.id}">ดูผลและเฉลย →</button></article>`;
+      }).join('') : '<div class="empty-state"><h2>ยังไม่มีผลสอบของชื่อนี้</h2><p>เลือกชุดข้อสอบและส่งคำตอบครบ แล้วผลจะบันทึกไว้ที่นี่</p><button class="btn primary" data-action="home">เริ่มติว →</button></div>'}</div>
+    </section>`;
+}
+
+function openAttempt(attemptId) {
+  const attempt = attemptsForProfile(state.profileId).find(item => item.id === attemptId);
+  if (!attempt) return;
+  state.resultAttempt = attempt;
+  state.answers = [...attempt.answers];
+  state.setId = attempt.setId;
+  state.attemptProfileId = attempt.profileId;
+  state.attemptProfileName = attempt.profileName;
+  state.attemptId = attempt.id;
+  state.submitted = true;
+  state.resultSaved = !sessionRecords.has(`${learnerKeys.attempt}${attempt.id}`);
+  state.screen = 'result';
+  render();
 }
 
 function answeredCount() {
@@ -786,12 +1006,14 @@ function setAnswers() {
 }
 
 function renderHome() {
+  const profile = activeProfile();
   app.innerHTML = `
+    ${renderProfilePanel()}
     <section class="hero">
       <div>
         <p class="eyebrow">Study smarter · ship stronger</p>
         <h1>ติวให้รู้จริง<br />แล้ว <em>ลองสนาม</em></h1>
-        <p class="hero-copy">แบบทดสอบ Responsive สำหรับ Advanced Flutter ออกแบบจากเอกสารสอบโดยตรง ให้ปามเห็นทั้งคะแนน คำตอบที่พลาด และหัวข้อที่ควรกลับไปทวน</p>
+        <p class="hero-copy">แบบทดสอบ Responsive สำหรับ Advanced Flutter ออกแบบจากเอกสารสอบโดยตรง ให้เราและเพื่อนเห็นคะแนน คำตอบที่พลาด และหัวข้อที่ควรกลับไปทวน โดยแยกประวัติตามชื่อผู้ทำ</p>
         <div class="hero-notes">
           <span class="mini-note">4 ตัวเลือก</span>
           <span class="mini-note">ทีละข้อ</span>
@@ -826,7 +1048,7 @@ function renderHome() {
             </div>
             <div class="set-foot">
               <span class="set-meta">${set.questions.length ? `${set.questions.length} ข้อ · ${escapeHtml(set.meta)}` : 'โครงสร้างพร้อมเติมข้อสอบ'}</span>
-              <button class="btn primary" data-action="start" data-set="${set.id}" ${set.status === 'soon' ? 'disabled' : ''}>${set.status === 'soon' ? 'กำลังเตรียม' : 'เริ่มทำข้อสอบ →'}</button>
+              <button class="btn primary" data-action="${profile ? 'start' : 'choose-learner'}" data-set="${set.id}" ${set.status === 'soon' ? 'disabled' : ''}>${set.status === 'soon' ? 'กำลังเตรียม' : profile ? 'เริ่มทำข้อสอบ →' : 'เลือกชื่อก่อนเริ่ม →'}</button>
             </div>
           </article>
         `).join('')}
@@ -847,6 +1069,8 @@ function renderQuiz() {
   const isLast = state.index === set.questions.length - 1;
   app.innerHTML = `
     <section class="quiz-shell">
+      ${renderLearnerBadge()}
+      ${renderStorageWarning()}
       <div class="quiz-header">
         <div><p class="eyebrow">${escapeHtml(set.eyebrow)}</p><h1>${escapeHtml(set.title)}</h1><p>เลือกคำตอบที่ดีที่สุดจากเอกสาร แล้วกดส่งเมื่อทำครบ</p></div>
         <div class="quiz-counter">${String(state.index + 1).padStart(2, '0')} / ${set.questions.length}</div>
@@ -927,12 +1151,15 @@ function renderResult() {
     : '<div class="empty-state"><h2>ครบทุกหัวข้อแล้ว 🎉</h2><p>รอบนี้ยังไม่มีหัวข้อที่ต้องกลับไปทวน</p></div>';
   app.innerHTML = `
     <section class="result-shell">
+      ${renderLearnerBadge()}
+      <p class="attempt-save-note" role="status">${state.resultSaved ? `บันทึกผลในประวัติของ ${escapeHtml(profileById(state.attemptProfileId)?.name || state.attemptProfileName)} แล้ว` : 'ยังบันทึกลงเครื่องไม่ได้ อย่าปิดหน้านี้หากยังต้องการดูผล'}${state.resultAttempt ? ` · ${escapeHtml(formatAttemptDate(state.resultAttempt.submittedAt))}` : ''}</p>
+      ${renderStorageWarning()}
       <div class="result-hero">
         <div>
           <p class="eyebrow">RESULTS · ${escapeHtml(set.title)}</p>
           <h1>สนามนี้ทำได้<br /><em>${points}/${total}</em> คะแนน</h1>
           <p class="result-copy">${percent >= 80 ? 'พื้นฐานแน่นมาก — กลับไปเก็บรายละเอียดข้อที่พลาด แล้วลองทำซ้ำให้มั่นใจ' : percent >= 55 ? 'โครงสร้างหลักเริ่มมาแล้ว — ทวนหัวข้อสีส้มก่อน แล้วลองทำซ้ำเพื่อจับ pattern ให้แม่นขึ้น' : 'ไม่เป็นไร นี่คือแผนที่สำหรับอ่านต่อ — เริ่มจากหัวข้อที่ผิดบ่อยที่สุด แล้วกลับมาลองอีกครั้ง'}</p>
-          <div class="result-actions"><button class="btn primary" data-action="review">ดูเฉลยและคำอธิบาย ↓</button><button class="btn" data-action="retry">ทำชุดนี้ใหม่</button><button class="btn ghost" data-action="home">เลือกชุดอื่น</button></div>
+          <div class="result-actions"><button class="btn primary" data-action="review">ดูเฉลยและคำอธิบาย ↓</button><button class="btn" data-action="retry">ทำชุดนี้ใหม่</button><button class="btn" data-action="history">ประวัติของชื่อนี้</button><button class="btn ghost" data-action="home">เลือกชื่อ / ชุดอื่น</button></div>
         </div>
         <div class="score-ring" style="--score:${percent}" aria-label="ได้ ${points} จาก ${total} คะแนน"><div class="score-inner"><span class="score-number">${percent}%</span><span class="score-sub">${wrong ? `${wrong} ข้อควรทวน` : 'ครบทุกข้อ'}</span></div></div>
       </div>
@@ -953,15 +1180,29 @@ function render() {
   if (state.screen === 'quiz') renderQuiz();
   if (state.screen === 'result') renderResult();
   if (state.screen === 'review') renderResult();
+  if (state.screen === 'history') renderHistory();
   if (state.screen === 'result' || state.screen === 'review') window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function startSet(setId) {
   const set = examSets.find((item) => item.id === setId);
   if (!set || !set.questions.length) return;
+  const profile = activeProfile();
+  if (!profile) {
+    state.profileMessage = 'เลือกหรือเพิ่มชื่อก่อนเริ่มสอบ เพื่อให้ผลไม่ปนกับคนอื่น';
+    state.screen = 'home';
+    render();
+    document.querySelector('#learner-name')?.focus();
+    return;
+  }
   state.setId = setId;
   state.index = 0;
   state.submitted = false;
+  state.resultAttempt = null;
+  state.resultSaved = false;
+  state.attemptId = newRecordId();
+  state.attemptProfileId = profile.id;
+  state.attemptProfileName = profile.name;
   setAnswers();
   state.screen = 'quiz';
   render();
@@ -969,12 +1210,25 @@ function startSet(setId) {
 }
 
 function submitExam() {
+  if (state.screen !== 'quiz' || state.submitted) return;
   if (state.answers.some((answer) => answer === null || answer === undefined)) {
     state.index = state.answers.findIndex((answer) => answer === null || answer === undefined);
     render();
     return;
   }
   state.submitted = true;
+  const set = activeSet();
+  state.resultAttempt = {
+    id: state.attemptId,
+    profileId: state.attemptProfileId,
+    profileName: state.attemptProfileName,
+    setId: set.id,
+    setTitle: set.title,
+    submittedAt: new Date().toISOString(),
+    answers: [...state.answers],
+    questions: set.questions.map(question => ({ ...question, options: [...question.options] })),
+  };
+  state.resultSaved = writeRecord(`${learnerKeys.attempt}${state.attemptId}`, state.resultAttempt);
   state.screen = 'result';
   render();
 }
@@ -983,15 +1237,46 @@ document.addEventListener('click', (event) => {
   const target = event.target.closest('[data-action]');
   if (!target) return;
   const action = target.dataset.action;
+  if (action === 'choose-profile') { chooseProfile(target.dataset.profile); return; }
+  if (action === 'choose-learner') {
+    state.profileMessage = 'เพิ่มหรือเลือกชื่อที่ช่องด้านบนก่อนนะ';
+    state.screen = 'home'; render(); document.querySelector('#learner-name')?.focus(); return;
+  }
+  if (action === 'rename-profile' || action === 'cancel-rename') {
+    if (state.screen !== 'home') return;
+    state.profileFormMode = action === 'rename-profile' ? 'rename' : 'create';
+    state.profileMessage = ''; render(); document.querySelector('#learner-name')?.focus(); return;
+  }
+  if (action === 'history') {
+    if (state.screen === 'quiz') return;
+    if (state.resultAttempt && (state.screen === 'result' || state.screen === 'review')) state.profileId = state.attemptProfileId;
+    state.screen = 'history'; render(); window.scrollTo({ top: 0, behavior: 'instant' }); return;
+  }
+  if (action === 'open-attempt') { if (state.screen === 'history') openAttempt(target.dataset.attempt); return; }
   if (action === 'home') { state.screen = 'home'; render(); return; }
   if (action === 'start') { startSet(target.dataset.set); return; }
-  if (action === 'answer') { state.answers[state.index] = Number(target.dataset.option); render(); return; }
-  if (action === 'jump') { state.index = Number(target.dataset.index); render(); return; }
-  if (action === 'previous') { state.index = Math.max(0, state.index - 1); render(); return; }
-  if (action === 'next') { state.index = Math.min(activeSet().questions.length - 1, state.index + 1); render(); return; }
+  if (action === 'answer') {
+    const option = Number(target.dataset.option);
+    if (state.screen !== 'quiz' || !Number.isInteger(option) || option < 0 || option > 3) return;
+    state.answers[state.index] = option; render(); return;
+  }
+  if (action === 'jump') {
+    const index = Number(target.dataset.index);
+    if (state.screen !== 'quiz' || !Number.isInteger(index) || index < 0 || index >= activeSet().questions.length) return;
+    state.index = index; render(); return;
+  }
+  if (action === 'previous') { if (state.screen !== 'quiz') return; state.index = Math.max(0, state.index - 1); render(); return; }
+  if (action === 'next') { if (state.screen !== 'quiz') return; state.index = Math.min(activeSet().questions.length - 1, state.index + 1); render(); return; }
   if (action === 'submit') { submitExam(); return; }
   if (action === 'retry') { startSet(state.setId); return; }
   if (action === 'review') { state.screen = 'review'; render(); document.querySelector('#review')?.scrollIntoView({ behavior: 'smooth' }); }
+});
+
+document.addEventListener('submit', (event) => {
+  const form = event.target.closest('[data-form="learner"]');
+  if (!form) return;
+  event.preventDefault();
+  saveLearner(form.elements.learnerName.value);
 });
 
 render();
