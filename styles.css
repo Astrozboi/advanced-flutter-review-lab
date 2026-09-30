@@ -235,7 +235,7 @@ h1 em { color: var(--accent); font-style: normal; }
 .legend-swatch.current { background: var(--ink); }
 .legend-swatch.answered { background: #dce9ff; }
 
-.question-card { padding: clamp(22px, 4vw, 38px); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+.question-card { min-width: 0; padding: clamp(22px, 4vw, 38px); overflow-wrap: anywhere; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
 .question-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; color: var(--muted); font-size: 0.77rem; font-weight: 700; }
 .question-topic { color: var(--accent-dark); }
 .question-card h2 { max-width: 760px; margin-bottom: 25px; font-size: clamp(1.25rem, 3vw, 1.75rem); line-height: 1.42; letter-spacing: -0.04em; }
@@ -269,7 +269,7 @@ h1 em { color: var(--accent); font-style: normal; }
 .topic-bar span { display: block; height: 100%; background: var(--coral); border-radius: inherit; }
 .topic-score { color: var(--coral); font-family: 'Space Grotesk', sans-serif; font-size: 0.87rem; font-weight: 700; }
 .review-list { display: grid; gap: 13px; }
-.review-card { padding: 18px; background: var(--paper); border: 1px solid var(--line); border-left: 4px solid var(--mint-strong); border-radius: 14px; }
+.review-card { min-width: 0; padding: 18px; overflow-wrap: anywhere; background: var(--paper); border: 1px solid var(--line); border-left: 4px solid var(--mint-strong); border-radius: 14px; }
 .review-card.wrong { border-left-color: var(--coral); }
 .review-top { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
 .review-top h3 { margin: 0; font-size: 0.96rem; line-height: 1.42; }
@@ -292,8 +292,8 @@ h1 em { color: var(--accent); font-style: normal; }
   .hero, .result-hero { grid-template-columns: 1fr; gap: 25px; }
   .hero { padding-top: 28px; }
   .hero-art { min-height: 300px; }
-  .quiz-layout { grid-template-columns: 1fr; }
-  .question-nav { position: static; padding: 14px 15px; }
+  .quiz-layout { grid-template-columns: minmax(0, 1fr); }
+  .question-nav { position: static; min-width: 0; padding: 14px 15px; }
   .question-nav h2, .question-nav p { display: none; }
   .nav-grid { display: flex; gap: 7px; overflow-x: auto; padding: 1px 1px 4px; }
   .nav-dot { flex: 0 0 34px; }
